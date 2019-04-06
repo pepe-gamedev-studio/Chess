@@ -1,7 +1,7 @@
 // dear imgui: standalone example application for Glfw + Vulkan
 // If you are new to dear imgui, see examples/README.txt and documentation at the top of imgui.cpp.
 
-#include "imgui.h"
+#include <imgui.h>
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
 #include <stdio.h>          // printf, fprintf
@@ -352,8 +352,21 @@ int main(int, char**)
 
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+	ImFontAtlas defaultFont;
+	
+	ImFontGlyphRangesBuilder defaultGlyphBuilder;
+	defaultGlyphBuilder.AddRanges(defaultFont.GetGlyphRangesDefault());
+	defaultGlyphBuilder.AddRanges(defaultFont.GetGlyphRangesCyrillic());
+
+	ImVector<ImWchar> glyphRanges;
+	defaultGlyphBuilder.BuildRanges(&glyphRanges);
+
+	defaultFont.AddFontFromFileTTF("fonts/Roboto-Medium.ttf", 13, nullptr, glyphRanges.Data);
+
+	ImGui::CreateContext(&defaultFont);
+	ImGuiIO& io = ImGui::GetIO();
+
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
 
