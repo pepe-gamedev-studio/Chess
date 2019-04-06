@@ -1,0 +1,9 @@
+[core]
+	repositoryformatversion = 0
+	filemode = false
+	bare = false
+	logallrefupdates = true
+	ignorecase = true
+[filter "ignore_dependencies"]
+	clean = sed '/<IncludePath\\|<LibraryPath/d'
+	smudge = cat
