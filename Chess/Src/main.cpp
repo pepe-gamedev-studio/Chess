@@ -1,6 +1,8 @@
 // dear imgui: standalone example application for Glfw + Vulkan
 // If you are new to dear imgui, see examples/README.txt and documentation at the top of imgui.cpp.
 
+
+
 #include <imgui.h>
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
@@ -10,6 +12,14 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
+
+#include <string>
+#include <initializer_list>
+#include <unordered_set>
+#include <memory>
+
+#include "Gui/GuiBuilder.h"
+#include "Gui/GuiManager.h"
 
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
 // To link with VS2010-era libraries, VS2015+ requires linking with legacy_stdio_definitions.lib, which we do using this pragma.
@@ -318,6 +328,37 @@ static void glfw_resize_callback(GLFWwindow*, int w, int h)
 	g_ResizeHeight = h;
 }
 
+struct FontAtlasBuilder
+{
+	ImFontGlyphRangesBuilder glyphBuilder;
+	ImVector<ImWchar> glyphRanges;
+	ImFontAtlas* atlas;
+	explicit FontAtlasBuilder(ImFontAtlas* atlas, std::initializer_list<const ImWchar*> glyphRangesList): atlas(atlas)
+	{
+		for(const ImWchar* ranges: glyphRangesList)
+			glyphBuilder.AddRanges(ranges);
+
+		glyphBuilder.BuildRanges(&glyphRanges);
+	}
+	ImFont* BuildFont(const char* filename, float sizePixels)
+	{
+		return atlas->AddFontFromFileTTF(filename, sizePixels, nullptr, glyphRanges.Data);
+	}
+};
+
+
+struct Game
+{
+	static GLFWwindow& Window() { return *window; }
+	//static GuiManager& Gui() { return *gui; }
+
+	static GLFWwindow* window;
+	//static GuiManager* gui;
+};
+
+GLFWwindow* Game::window;
+//GuiManager* Game::gui;
+
 int main(int, char**)
 {
 	// Setup window
@@ -326,7 +367,7 @@ int main(int, char**)
 		return 1;
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	GLFWwindow* window = glfwCreateWindow(1280, 720, "Dear ImGui GLFW+Vulkan example", NULL, NULL);
+	Game::window = glfwCreateWindow(1280, 720, "Chess", NULL, NULL);
 
 	// Setup Vulkan
 	if (!glfwVulkanSupported())
@@ -340,31 +381,36 @@ int main(int, char**)
 
 	// Create Window Surface
 	VkSurfaceKHR surface;
-	VkResult err = glfwCreateWindowSurface(g_Instance, window, g_Allocator, &surface);
+	VkResult err = glfwCreateWindowSurface(g_Instance, &Game::Window(), g_Allocator, &surface);
 	check_vk_result(err);
 
 	// Create Framebuffers
 	int w, h;
-	glfwGetFramebufferSize(window, &w, &h);
-	glfwSetFramebufferSizeCallback(window, glfw_resize_callback);
+	glfwGetFramebufferSize(&Game::Window(), &w, &h);
+	glfwSetFramebufferSizeCallback(&Game::Window(), glfw_resize_callback);
 	ImGui_ImplVulkanH_WindowData* wd = &g_WindowData;
 	SetupVulkanWindowData(wd, surface, w, h);
 
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
 
-	ImFontAtlas defaultFont;
-	
-	ImFontGlyphRangesBuilder defaultGlyphBuilder;
-	defaultGlyphBuilder.AddRanges(defaultFont.GetGlyphRangesDefault());
-	defaultGlyphBuilder.AddRanges(defaultFont.GetGlyphRangesCyrillic());
+	//Setup fonts what we need
+	ImFontAtlas defaultFontAtlas;
+	FontAtlasBuilder fontAtlas(&defaultFontAtlas, { defaultFontAtlas.GetGlyphRangesDefault(), defaultFontAtlas.GetGlyphRangesCyrillic() });
+	ImFont* defaultFont = fontAtlas.BuildFont("fonts/Roboto-Medium.ttf", 13);
+	ImFont* mainMenuButtonFont = fontAtlas.BuildFont("fonts/Roboto-Medium.ttf", 26);
 
-	ImVector<ImWchar> glyphRanges;
-	defaultGlyphBuilder.BuildRanges(&glyphRanges);
+	Gui::GuiBuilder guiBuilder;
+	Gui::GuiManager guiManager(guiBuilder);
 
-	defaultFont.AddFontFromFileTTF("fonts/Roboto-Medium.ttf", 13, nullptr, glyphRanges.Data);
+	guiBuilder.SetFontAtlas(defaultFontAtlas);
+	guiBuilder.SetWindow(Game::Window());
+	guiBuilder.SetGuiManager(guiManager);
 
-	ImGui::CreateContext(&defaultFont);
+	guiManager.Switch(Gui::LayerCollection::MAIN_MENU);
+
+
+	ImGui::CreateContext(&defaultFontAtlas);
 	ImGuiIO& io = ImGui::GetIO();
 
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
@@ -375,7 +421,7 @@ int main(int, char**)
 	//ImGui::StyleColorsClassic();
 
 	// Setup Platform/Renderer bindings
-	ImGui_ImplGlfw_InitForVulkan(window, true);
+	ImGui_ImplGlfw_InitForVulkan(&Game::Window(), true);
 	ImGui_ImplVulkan_InitInfo init_info = {};
 	init_info.Instance = g_Instance;
 	init_info.PhysicalDevice = g_PhysicalDevice;
@@ -433,12 +479,12 @@ int main(int, char**)
 		ImGui_ImplVulkan_InvalidateFontUploadObjects();
 	}
 
-	bool show_demo_window = true;
+	bool show_demo_window = false;
 	bool show_another_window = false;
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
 	// Main loop
-	while (!glfwWindowShouldClose(window))
+	while (!glfwWindowShouldClose(&Game::Window()))
 	{
 		// Poll and handle events (inputs, window resize, etc.)
 		// You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
@@ -453,7 +499,7 @@ int main(int, char**)
 		}
 
 		// Start the Dear ImGui frame
-		ImGui_ImplVulkan_NewFrame();
+		//ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
@@ -466,32 +512,37 @@ int main(int, char**)
 			static float f = 0.0f;
 			static int counter = 0;
 
-			ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+			guiManager.Gui()->Draw();
 
-			ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-			ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-			ImGui::Checkbox("Another Window", &show_another_window);
+			/*ImGui::SetNextWindowPosCenter();
+			ImGui::SetNextWindowSize({ 230, 400 });
+			ImGui::Begin(u8" ", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
 
-			ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-			ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+			ImGui::PushFont(mainMenuButtonFont);
+			ImGui::SetCursorPos({ 15, 15 });
+			ImGui::Button(u8"Одиночная", { 200, 50 });
+			ImGui::SetCursorPosX(15);
+			if (ImGui::Button(u8"Выход", { 200, 50 }))
+			{
+				glfwSetWindowShouldClose(&Game::Window(), GLFW_TRUE);
+			}
 
-			if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-				counter++;
-			ImGui::SameLine();
-			ImGui::Text("counter = %d", counter);
+			ImGui::PopFont();
+			ImGui::End();*/
+			//ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+			//ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+			//ImGui::Checkbox("Another Window", &show_another_window);
 
-			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-			ImGui::End();
-		}
+			//ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+			//ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
 
-		// 3. Show another simple window.
-		if (show_another_window)
-		{
-			ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-			ImGui::Text("Hello from another window!");
-			if (ImGui::Button("Close Me"))
-				show_another_window = false;
-			ImGui::End();
+			//if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+			//	counter++;
+			//ImGui::SameLine();
+			//ImGui::Text("counter = %d", counter);
+
+			//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+			//ImGui::End();
 		}
 
 		// Rendering
@@ -510,7 +561,7 @@ int main(int, char**)
 	ImGui::DestroyContext();
 	CleanupVulkan();
 
-	glfwDestroyWindow(window);
+	glfwDestroyWindow(&Game::Window());
 	glfwTerminate();
 
 	return 0;

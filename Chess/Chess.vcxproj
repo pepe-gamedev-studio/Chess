@@ -79,11 +79,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Gui\GuiBuilder.cpp" />
+    <ClCompile Include="Src\Gui\GuiManager.cpp" />
+    <ClCompile Include="Src\Gui\Layers\MainMenu.cpp" />
+    <ClCompile Include="Src\Gui\Layers\SinglePlayerMenu.cpp" />
     <ClCompile Include="Src\imgui_impl_glfw.cpp" />
     <ClCompile Include="Src\imgui_impl_vulkan.cpp" />
     <ClCompile Include="Src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Src\Gui\GuiLayer.h" />
+    <ClInclude Include="Src\Gui\GuiBuilder.h" />
+    <ClInclude Include="Src\Gui\GuiManager.h" />
+    <ClInclude Include="Src\Gui\Layers.h" />
+    <ClInclude Include="Src\Gui\Layers\MainMenu.h" />
+    <ClInclude Include="Src\Gui\Layers\SinglePlayerMenu.h" />
     <ClInclude Include="Src\imgui_impl_glfw.h" />
     <ClInclude Include="Src\imgui_impl_vulkan.h" />
   </ItemGroup>
