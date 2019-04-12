@@ -2,6 +2,13 @@
 
 `git clone git@github.com:pepe-gamedev-studio/Chess.git`
 
+Создать в корне `.vs_fragment`. Пример
+
+```
+<IncludePath>./Src;D:/Repo/VulkanSDK_1.1.101.0/Include;D:/Repo/glfw/include;D:/Repo/imgui;$(IncludePath)</IncludePath>
+<LibraryPath>D:/Repo/VulkanSDK_1.1.101.0/Lib;D:/Repo/glfw/lib;D:/Repo/imgui/x64/Debug;$(LibraryPath)</LibraryPath>
+```
+
 Применить фильтры `git config --local include.path ../.gitconfig`
 
 ## Пишем новую фичу
