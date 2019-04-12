@@ -5,5 +5,5 @@
 	logallrefupdates = true
 	ignorecase = true
 [filter "ignore_dependencies"]
-	clean = sed '/<IncludePath\\|<LibraryPath/d'
-	smudge = cat
+	clean = sed -e '/<LibraryPath/d' -re 's|(<IncludePath>).+(<\\/IncludePath>)|\\1"./Src;$(IncludePath)"\\2|'
+	smudge = ./scripts/ignore_dependencies_smudge.sh
